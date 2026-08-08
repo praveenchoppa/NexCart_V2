@@ -4,10 +4,12 @@ import org.springframework.stereotype.Service;
 
 import com.nexcart.category.entity.Category;
 import com.nexcart.category.repository.CategoryRepository;
+import com.nexcart.exception.CategoryNotFoundException;
 import com.nexcart.product.dto.ProductRequestDTO;
 import com.nexcart.product.dto.ProductResponseDTO;
 import com.nexcart.product.entity.Product;
 import com.nexcart.product.repository.ProductRepository;
+import com.nexcart.exception.ProductNotFoundException;
 
 @Service
 public class ProductService {
@@ -23,7 +25,8 @@ public class ProductService {
 
     public ProductResponseDTO createProduct(ProductRequestDTO request){
          
-        Category category = categoryRepository.findById(request.getCategoryId()).orElseThrow();
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found!"));
 
         Product product = new Product();
 
@@ -47,6 +50,24 @@ public class ProductService {
         response.setStatus(savedProduct.getStatus());
 
         response.setCategoryName(savedProduct.getCategory().getName());
+
+        return response;
+    }
+
+    public ProductResponseDTO getProductById(Long id){
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ProductNotFoundException("Product not found!"));
+
+        ProductResponseDTO response = new ProductResponseDTO();
+
+        response.setId(product.getId());
+        response.setName(product.getName());
+        response.setPrice(product.getPrice());
+        response.setDescription(product.getDescription());
+        response.setStock(product.getStock());
+        response.setStatus(product.getStatus());
+        response.setCategoryName(product.getCategory().getName());
 
         return response;
     }

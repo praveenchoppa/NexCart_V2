@@ -23,4 +23,9 @@ public class ProductController {
 
             return productService.createProduct(request);
         }
+
+        @GetMapping("/{id}")
+        public ProductResponseDTO getProductById(@PathVariable Long id){
+            return productService.getProductById(id);
+        }
 }

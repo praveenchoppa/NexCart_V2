@@ -6,6 +6,7 @@ import com.nexcart.category.dto.CategoryRequestDTO;
 import com.nexcart.category.dto.CategoryResponseDTO;
 import com.nexcart.category.entity.Category;
 import com.nexcart.category.repository.CategoryRepository;
+import com.nexcart.exception.CategoryAlreadyExistsException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,7 +20,7 @@ public class CategoryService {
     public CategoryResponseDTO createCategory(CategoryRequestDTO request) {
         
         if(categoryRepository.existsByName(request.getName())){
-            throw new RuntimeException("Category already exists");
+            throw new CategoryAlreadyExistsException("Category already exists");
         }
 
         Category category =  new Category(
