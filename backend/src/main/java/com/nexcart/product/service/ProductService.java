@@ -11,6 +11,9 @@ import com.nexcart.product.entity.Product;
 import com.nexcart.product.repository.ProductRepository;
 import com.nexcart.exception.ProductNotFoundException;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 @Service
 public class ProductService {
     
@@ -70,5 +73,26 @@ public class ProductService {
         response.setCategoryName(product.getCategory().getName());
 
         return response;
+    }
+
+    public Page<ProductResponseDTO> getAllProducts(Pageable pageable){
+
+        Page<Product> products = productRepository.findAll(pageable);
+
+        return products.map(product -> {
+
+            ProductResponseDTO response = new ProductResponseDTO();
+
+            response.setId(product.getId());
+            response.setName(product.getName());
+            response.setPrice(product.getPrice());
+            response.setDescription(product.getDescription());
+            response.setStock(product.getStock());
+            response.setStatus(product.getStatus());
+            response.setCategoryName(product.getCategory().getName());
+
+            return response;
+        });
+        
     }
 }
