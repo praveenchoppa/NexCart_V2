@@ -95,4 +95,44 @@ public class ProductService {
         });
         
     }
+
+    public ProductResponseDTO updateProduct(Long id,ProductRequestDTO request){
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(()->
+                      new ProductNotFoundException("Product not found!"));
+
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found!"));
+
+        product.setName(request.getName());
+        product.setPrice(request.getPrice());
+        product.setDescription(request.getDescription());
+        product.setStock(request.getStock());
+        product.setStatus(request.getStatus());
+        product.setCategory(category);
+
+        Product updatedProduct = productRepository.save(product);
+
+        ProductResponseDTO response = new ProductResponseDTO();
+
+        response.setId(updatedProduct.getId());
+        response.setName(updatedProduct.getName());
+        response.setPrice(updatedProduct.getPrice());
+        response.setDescription(updatedProduct.getDescription());
+        response.setStock(updatedProduct.getStock());
+        response.setStatus(updatedProduct.getStatus());
+        response.setCategoryName(updatedProduct.getCategory().getName());
+
+        return response;
+    }
+
+    public void deleteProduct(Long id){
+
+        Product product = productRepository.findById(id)
+                .orElseThrow(()->
+                      new ProductNotFoundException("Product not found!"));
+
+        productRepository.delete(product);
+    }
 }
