@@ -87,6 +87,22 @@ public class GlobalExceptionHandler {
                     .body(error);
         }
     
+    @ExceptionHandler(CategoryInUseException.class)
+    public ResponseEntity<ErrorResponse> handleCategoryInUse(
+        CategoryInUseException ex,
+        HttpServletRequest request){
+
+            ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI()
+            );
+
+            return ResponseEntity
+                   .status(HttpStatus.CONFLICT)
+                    .body(error);
+        }
         
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(

@@ -6,4 +6,5 @@ import com.nexcart.product.entity.Product;
 
 public interface ProductRepository extends JpaRepository<Product,Long > {
     
+    boolean existsByCategoryId(Long categoryId);
 }
