@@ -103,6 +103,23 @@ public class GlobalExceptionHandler {
                    .status(HttpStatus.CONFLICT)
                     .body(error);
         }
+
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserAlreadyExists(
+        UserAlreadyExistsException ex,
+        HttpServletRequest request){
+
+            ErrorResponse error = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                request.getRequestURI()
+            );
+
+            return ResponseEntity
+                   .status(HttpStatus.CONFLICT)
+                    .body(error);
+        }
         
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(
