@@ -2,6 +2,7 @@ package com.nexcart.exception;
 
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -9,7 +10,9 @@ import java.time.LocalDateTime;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -120,21 +123,72 @@ public class GlobalExceptionHandler {
                    .status(HttpStatus.CONFLICT)
                     .body(error);
         }
-        
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponse> handleRuntimeException(
-        RuntimeException ex,
-        HttpServletRequest request){
 
-        ErrorResponse error = new ErrorResponse(
-            LocalDateTime.now(),
-            HttpStatus.BAD_REQUEST.value(),
-            ex.getMessage(),
-            request.getRequestURI()
-        );
+        @ExceptionHandler(BadCredentialsException.class)
+        public ResponseEntity<ErrorResponse> handleBadCredentials(
+                BadCredentialsException ex,
+                HttpServletRequest request){
+
+                    ErrorResponse error = new ErrorResponse(
+                            LocalDateTime.now(),
+                            HttpStatus.UNAUTHORIZED.value(),
+                            "Invalid email or password",
+                            request.getRequestURI()
+                    );
+
+                    return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(error);
+                }
+
+        @ExceptionHandler(HttpMessageNotReadableException.class)
+        public ResponseEntity<ErrorResponse> handleMessageNotReadable(
+                HttpMessageNotReadableException ex,
+                HttpServletRequest request){
+
+                    ErrorResponse error = new ErrorResponse(
+                            LocalDateTime.now(),
+                            HttpStatus.BAD_REQUEST.value(),
+                            "Malformed request body.",
+                            request.getRequestURI()
+                    );
+
+                    return ResponseEntity
+                            .status(HttpStatus.BAD_REQUEST)
+                        .body(error);
+                }
+
+        @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+        public ResponseEntity<ErrorResponse> handleTypeMismatch(
+                MethodArgumentTypeMismatchException ex,
+                HttpServletRequest request) {
+
+                ErrorResponse error = new ErrorResponse(
+                        LocalDateTime.now(),
+                        HttpStatus.BAD_REQUEST.value(),
+                "Invalid parameter type in request URL.",
+                        request.getRequestURI()
+                    );
+
+                    return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(error);
+                }
         
-        return ResponseEntity
-               .status(HttpStatus.BAD_REQUEST)
-                .body(error);
-    }
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<ErrorResponse> handleUnexpectedException(
+            Exception ex,
+            HttpServletRequest request){
+
+                ErrorResponse error = new ErrorResponse(
+                    LocalDateTime.now(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                    "An unexpected server error occurred.",
+                    request.getRequestURI()
+                );
+
+                return ResponseEntity
+                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(error);
+            } 
 }
