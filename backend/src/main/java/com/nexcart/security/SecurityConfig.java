@@ -52,7 +52,12 @@ public SecurityFilterChain securityFilterChain(
         .authorizeHttpRequests(auth -> auth
             .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 
-            .requestMatchers("/api/auth/**").permitAll()
+            .requestMatchers(
+                "/api/auth/**",
+                "/swagger-ui.html",
+                "/swagger-ui/**",
+                "/v3/api-docs/**"
+            ).permitAll()
 
             .requestMatchers(
                 HttpMethod.GET,

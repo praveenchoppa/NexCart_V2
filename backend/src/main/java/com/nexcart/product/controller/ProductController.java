@@ -9,11 +9,14 @@ import com.nexcart.product.dto.ProductRequestDTO;
 import com.nexcart.product.dto.ProductResponseDTO;
 import com.nexcart.product.service.ProductService;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import jakarta.validation.Valid;
 
+
 @RestController
 @RequestMapping("/api/products")
+@SecurityRequirement(name = "bearerAuth")
 public class ProductController {
     
         private final ProductService productService;
