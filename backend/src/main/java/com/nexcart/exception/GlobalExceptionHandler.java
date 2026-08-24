@@ -174,7 +174,41 @@ public class GlobalExceptionHandler {
                     .status(HttpStatus.BAD_REQUEST)
                     .body(error);
                 }
-        
+
+        @ExceptionHandler(ResourceNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException ex,
+            HttpServletRequest request){
+
+                ErrorResponse error = new ErrorResponse(
+                    LocalDateTime.now(),
+                    HttpStatus.NOT_FOUND.value(),
+                    ex.getMessage(),
+                    request.getRequestURI()
+                );
+
+                return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(error);
+            }
+
+        @ExceptionHandler(BadRequestException.class)
+        public ResponseEntity<ErrorResponse> handleBadRequest(
+            BadRequestException ex,
+            HttpServletRequest request) {
+
+                ErrorResponse error = new ErrorResponse(
+                    LocalDateTime.now(),
+                    HttpStatus.BAD_REQUEST.value(),
+                    ex.getMessage(),
+                    request.getRequestURI()
+                );
+
+                return ResponseEntity
+                        .status(HttpStatus.BAD_REQUEST)
+                        .body(error);
+            }
+
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponse> handleUnexpectedException(
             Exception ex,

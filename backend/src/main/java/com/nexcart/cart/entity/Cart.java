@@ -3,7 +3,7 @@ package com.nexcart.cart.entity;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.data.annotation.Id;
+import jakarta.persistence.Id;
 
 import com.nexcart.user.entity.User;
 
