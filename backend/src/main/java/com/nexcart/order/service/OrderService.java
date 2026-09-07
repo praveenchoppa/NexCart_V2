@@ -1,5 +1,112 @@
 package com.nexcart.order.service;
 
+import com.nexcart.cart.entity.Cart;
+import com.nexcart.cart.entity.CartItem;
+import com.nexcart.cart.repository.CartRepository;
+import com.nexcart.exception.BadRequestException;
+import com.nexcart.exception.ResourceNotFoundException;
+import com.nexcart.order.dto.OrderItemResponseDTO;
+import com.nexcart.order.dto.OrderResponseDTO;
+import com.nexcart.order.entity.Order;
+import com.nexcart.order.entity.OrderItem;
+import com.nexcart.order.entity.OrderStatus;
+import com.nexcart.order.repository.OrderRepository;
+import com.nexcart.user.entity.User;
+import com.nexcart.user.repository.UserRepository;
+
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
 public class OrderService {
-    
+
+    private final OrderRepository orderRepository;
+    private final CartRepository cartRepository;
+    private final UserRepository userRepository;
+
+    public OrderService(
+            OrderRepository orderRepository,
+            CartRepository cartRepository,
+            UserRepository userRepository) {
+
+        this.orderRepository = orderRepository;
+        this.cartRepository = cartRepository;
+        this.userRepository = userRepository;
+    }
+
+    public OrderResponseDTO createOrder(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found!"));
+
+        Cart cart = cartRepository.findByUserId(user.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Cart not found!"));
+
+        if (cart.getItems().isEmpty()) {
+            throw new BadRequestException("Cart is empty!");
+        }
+
+        Order order = new Order();
+
+        order.setUser(user);
+        order.setStatus(OrderStatus.PLACED);
+        order.setCreatedAt(LocalDateTime.now());
+
+        List<OrderItemResponseDTO> responseItems = new ArrayList<>();
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+
+        for (CartItem cartItem : cart.getItems()) {
+
+            BigDecimal price = cartItem.getProduct().getPrice();
+
+            BigDecimal subtotal = price.multiply(
+                    BigDecimal.valueOf(cartItem.getQuantity())
+            );
+
+            OrderItem orderItem = new OrderItem();
+
+            orderItem.setOrder(order);
+            orderItem.setProduct(cartItem.getProduct());
+            orderItem.setPrice(price);
+            orderItem.setQuantity(cartItem.getQuantity());
+
+            order.getItems().add(orderItem);
+
+            totalAmount = totalAmount.add(subtotal);
+
+            responseItems.add(
+                    new OrderItemResponseDTO(
+                            null,
+                            cartItem.getProduct().getId(),
+                            cartItem.getProduct().getName(),
+                            price,
+                            cartItem.getQuantity(),
+                            subtotal
+                    )
+            );
+        }
+
+        order.setTotalAmount(totalAmount);
+
+        Order savedOrder = orderRepository.save(order);
+
+        cart.getItems().clear();
+
+        OrderResponseDTO response = new OrderResponseDTO(
+                savedOrder.getId(),
+                savedOrder.getStatus().name(),
+                savedOrder.getTotalAmount(),
+                savedOrder.getCreatedAt(),
+                responseItems
+        );
+
+        return response;
+    }
 }
