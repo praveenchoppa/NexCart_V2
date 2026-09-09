@@ -15,6 +15,7 @@ import com.nexcart.user.entity.User;
 import com.nexcart.user.repository.UserRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,6 +39,7 @@ public class OrderService {
         this.userRepository = userRepository;
     }
 
+    @Transactional
     public OrderResponseDTO createOrder(String email) {
 
         User user = userRepository.findByEmail(email)
@@ -57,8 +59,6 @@ public class OrderService {
         order.setUser(user);
         order.setStatus(OrderStatus.PLACED);
         order.setCreatedAt(LocalDateTime.now());
-
-        List<OrderItemResponseDTO> responseItems = new ArrayList<>();
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
@@ -80,17 +80,6 @@ public class OrderService {
             order.getItems().add(orderItem);
 
             totalAmount = totalAmount.add(subtotal);
-
-            responseItems.add(
-                    new OrderItemResponseDTO(
-                            null,
-                            cartItem.getProduct().getId(),
-                            cartItem.getProduct().getName(),
-                            price,
-                            cartItem.getQuantity(),
-                            subtotal
-                    )
-            );
         }
 
         order.setTotalAmount(totalAmount);
@@ -98,6 +87,26 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
 
         cart.getItems().clear();
+
+        List<OrderItemResponseDTO> responseItems = new ArrayList<>();
+
+        for (OrderItem orderItem : savedOrder.getItems()) {
+
+            BigDecimal subtotal = orderItem.getPrice().multiply(
+                    BigDecimal.valueOf(orderItem.getQuantity())
+            );
+
+            responseItems.add(
+                    new OrderItemResponseDTO(
+                            orderItem.getId(),
+                            orderItem.getProduct().getId(),
+                            orderItem.getProduct().getName(),
+                            orderItem.getPrice(),
+                            orderItem.getQuantity(),
+                            subtotal
+                    )
+            );
+        }
 
         OrderResponseDTO response = new OrderResponseDTO(
                 savedOrder.getId(),
