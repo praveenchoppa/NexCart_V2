@@ -15,12 +15,10 @@ import com.nexcart.product.entity.Product;
 import com.nexcart.user.entity.User;
 import com.nexcart.user.repository.UserRepository;
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -67,16 +65,24 @@ public class OrderService {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
+
         for (CartItem cartItem : cart.getItems()) {
 
-                Product product = cartItem.getProduct();
+            Product product = cartItem.getProduct();
 
-                if(cartItem.getQuantity() > product.getStock()){
-                        throw new BadRequestException("Insufficient stock!");
-                }
+            if (cartItem.getQuantity() > product.getStock()) {
+                throw new BadRequestException("Insufficient stock!");
+            }
+        }
 
-            product.setStock(product.getStock() - cartItem.getQuantity());
-        
+        for (CartItem cartItem : cart.getItems()) {
+
+            Product product = cartItem.getProduct();
+
+            product.setStock(
+                    product.getStock() - cartItem.getQuantity()
+            );
+
             BigDecimal price = product.getPrice();
 
             BigDecimal subtotal = price.multiply(
@@ -86,7 +92,7 @@ public class OrderService {
             OrderItem orderItem = new OrderItem();
 
             orderItem.setOrder(order);
-            orderItem.setProduct(cartItem.getProduct());
+            orderItem.setProduct(product);
             orderItem.setPrice(price);
             orderItem.setQuantity(cartItem.getQuantity());
 
@@ -133,9 +139,9 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderResponseDTO getOrderById(String email, Long orderId){
+    public OrderResponseDTO getOrderById(String email, Long orderId) {
 
-        Order order = orderRepository.findByIdAndUserEmail(orderId,email)
+        Order order = orderRepository.findByIdAndUserEmail(orderId, email)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Order not found!"));
 
@@ -150,7 +156,7 @@ public class OrderService {
             responseItems.add(
                     new OrderItemResponseDTO(
                             orderItem.getId(),
-                            orderItem.getProduct().getId(),
+                        orderItem.getProduct().getId(),
                             orderItem.getProduct().getName(),
                             orderItem.getPrice(),
                             orderItem.getQuantity(),
@@ -168,40 +174,42 @@ public class OrderService {
         );
     }
 
-        @Transactional(readOnly = true)
-        public Page<OrderResponseDTO> getUserOrders(
-                String email, Pageable pageable){
+    @Transactional(readOnly = true)
+    public Page<OrderResponseDTO> getUserOrders(
+            String email, Pageable pageable) {
 
-                Page<Order> ordersPage = orderRepository.findByUserEmail(email, pageable);
-                
-                return ordersPage.map(order -> {
-                    List<OrderItemResponseDTO> responseItems = new ArrayList<>();
+        Page<Order> ordersPage =
+                orderRepository.findByUserEmail(email, pageable);
 
-                    for (OrderItem orderItem : order.getItems()) {
+        return ordersPage.map(order -> {
 
-                        BigDecimal subtotal = orderItem.getPrice().multiply(
-                                BigDecimal.valueOf(orderItem.getQuantity())
-                        );
+            List<OrderItemResponseDTO> responseItems = new ArrayList<>();
 
-                        responseItems.add(
-                                new OrderItemResponseDTO(
-                                        orderItem.getId(),
-                                        orderItem.getProduct().getId(),
-                                        orderItem.getProduct().getName(),
-                                        orderItem.getPrice(),
-                                        orderItem.getQuantity(),
-                                        subtotal
-                                )
-                        );
-                    }
+            for (OrderItem orderItem : order.getItems()) {
 
-                    return new OrderResponseDTO(
-                            order.getId(),
-                            order.getStatus().name(),
-                            order.getTotalAmount(),
-                            order.getCreatedAt(),
-                            responseItems
-                    );
-                });
-        }
+                BigDecimal subtotal = orderItem.getPrice().multiply(
+                        BigDecimal.valueOf(orderItem.getQuantity())
+                );
+
+                responseItems.add(
+                        new OrderItemResponseDTO(
+                                orderItem.getId(),
+                                orderItem.getProduct().getId(),
+                                orderItem.getProduct().getName(),
+                                orderItem.getPrice(),
+                                orderItem.getQuantity(),
+                                subtotal
+                        )
+                );
+            }
+
+            return new OrderResponseDTO(
+                    order.getId(),
+                    order.getStatus().name(),
+                    order.getTotalAmount(),
+                    order.getCreatedAt(),
+                    responseItems
+            );
+        });
+    }
 }
