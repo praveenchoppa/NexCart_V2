@@ -12,6 +12,7 @@ import com.nexcart.order.entity.OrderItem;
 import com.nexcart.order.entity.OrderStatus;
 import com.nexcart.order.repository.OrderRepository;
 import com.nexcart.product.entity.Product;
+import com.nexcart.product.repository.ProductRepository;
 import com.nexcart.user.entity.User;
 import com.nexcart.user.repository.UserRepository;
 
@@ -23,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderService {
@@ -31,15 +34,18 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
 
     public OrderService(
             OrderRepository orderRepository,
             CartRepository cartRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ProductRepository productRepository) {
 
         this.orderRepository = orderRepository;
         this.cartRepository = cartRepository;
         this.userRepository = userRepository;
+        this.productRepository = productRepository;
     }
 
     @Transactional
@@ -65,19 +71,27 @@ public class OrderService {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
+        Map<Long, Product> lockedProducts = new HashMap<>();
 
         for (CartItem cartItem : cart.getItems()) {
 
-            Product product = cartItem.getProduct();
+            Product product = productRepository.findLockedById(
+                    cartItem.getProduct().getId()
+            ).orElseThrow(() ->
+                    new ResourceNotFoundException("Product not found!"));
 
             if (cartItem.getQuantity() > product.getStock()) {
                 throw new BadRequestException("Insufficient stock!");
             }
+
+            lockedProducts.put(product.getId(), product);
         }
 
         for (CartItem cartItem : cart.getItems()) {
 
-            Product product = cartItem.getProduct();
+            Product product = lockedProducts.get(
+                    cartItem.getProduct().getId()
+            );
 
             product.setStock(
                     product.getStock() - cartItem.getQuantity()
@@ -127,23 +141,25 @@ public class OrderService {
             );
         }
 
-        OrderResponseDTO response = new OrderResponseDTO(
+        return new OrderResponseDTO(
                 savedOrder.getId(),
                 savedOrder.getStatus().name(),
                 savedOrder.getTotalAmount(),
                 savedOrder.getCreatedAt(),
                 responseItems
         );
-
-        return response;
     }
 
     @Transactional(readOnly = true)
-    public OrderResponseDTO getOrderById(String email, Long orderId) {
+    public OrderResponseDTO getOrderById(
+            String email,
+            Long orderId) {
 
-        Order order = orderRepository.findByIdAndUserEmail(orderId, email)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Order not found!"));
+        Order order = orderRepository.findByIdAndUserEmail(
+                orderId,
+                email
+        ).orElseThrow(() ->
+                new ResourceNotFoundException("Order not found!"));
 
         List<OrderItemResponseDTO> responseItems = new ArrayList<>();
 
@@ -156,7 +172,7 @@ public class OrderService {
             responseItems.add(
                     new OrderItemResponseDTO(
                             orderItem.getId(),
-                        orderItem.getProduct().getId(),
+                            orderItem.getProduct().getId(),
                             orderItem.getProduct().getName(),
                             orderItem.getPrice(),
                             orderItem.getQuantity(),
@@ -176,20 +192,25 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public Page<OrderResponseDTO> getUserOrders(
-            String email, Pageable pageable) {
+            String email,
+            Pageable pageable) {
 
         Page<Order> ordersPage =
                 orderRepository.findByUserEmail(email, pageable);
 
         return ordersPage.map(order -> {
 
-            List<OrderItemResponseDTO> responseItems = new ArrayList<>();
+            List<OrderItemResponseDTO> responseItems =
+                    new ArrayList<>();
 
             for (OrderItem orderItem : order.getItems()) {
 
-                BigDecimal subtotal = orderItem.getPrice().multiply(
-                        BigDecimal.valueOf(orderItem.getQuantity())
-                );
+                BigDecimal subtotal =
+                        orderItem.getPrice().multiply(
+                                BigDecimal.valueOf(
+                                        orderItem.getQuantity()
+                                )
+                        );
 
                 responseItems.add(
                         new OrderItemResponseDTO(
@@ -211,5 +232,58 @@ public class OrderService {
                     responseItems
             );
         });
+    }
+
+    @Transactional
+    public OrderResponseDTO updateOrderStatus(
+            Long orderId,
+            OrderStatus newStatus) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Order not found!"
+                        ));
+
+        OrderStatus currentStatus = order.getStatus();
+
+        if (currentStatus == OrderStatus.PLACED
+                && newStatus == OrderStatus.CONFIRMED) {
+
+            order.setStatus(newStatus);
+
+        } else {
+
+            throw new BadRequestException(
+                    "Invalid order status transition!"
+            );
+        }
+
+        return new OrderResponseDTO(
+                order.getId(),
+                order.getStatus().name(),
+                order.getTotalAmount(),
+                order.getCreatedAt(),
+                order.getItems().stream()
+                        .map(orderItem -> {
+
+                            BigDecimal subtotal =
+                                    orderItem.getPrice().multiply(
+                                            BigDecimal.valueOf(
+                                                    orderItem.getQuantity()
+                                            )
+                                    );
+
+                            return new OrderItemResponseDTO(
+                                    orderItem.getId(),
+                                    orderItem.getProduct().getId(),
+                                    orderItem.getProduct().getName(),
+                                    orderItem.getPrice(),
+                                    orderItem.getQuantity(),
+                                    subtotal
+                            );
+                        })
+                        .toList()
+        );
     }
 }
