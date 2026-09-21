@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -225,4 +226,21 @@ public class GlobalExceptionHandler {
                         .status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(error);
             } 
+        
+            @ExceptionHandler (AccessDeniedException.class)
+            public ResponseEntity<ErrorResponse> handleAccessDeniedException(
+                AccessDeniedException ex,
+                HttpServletRequest request) {
+
+                    ErrorResponse error = new ErrorResponse(
+                        LocalDateTime.now(),
+                        HttpStatus.FORBIDDEN.value(),
+                        "Access denied!",
+                        request.getRequestURI()
+                    );
+
+                    return ResponseEntity
+                            .status(HttpStatus.FORBIDDEN)
+                            .body(error);
+            }
 }

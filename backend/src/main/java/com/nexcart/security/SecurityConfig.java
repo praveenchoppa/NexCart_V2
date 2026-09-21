@@ -6,6 +6,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -13,9 +14,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
 import jakarta.servlet.DispatcherType;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -36,64 +39,68 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
-@Bean
-public SecurityFilterChain securityFilterChain(
-        HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
 
-    http
-        .csrf(csrf -> csrf.disable())
+        http
+            .csrf(csrf -> csrf.disable())
 
-        .sessionManagement(session ->
-            session.sessionCreationPolicy(
-                SessionCreationPolicy.STATELESS
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS
+                )
             )
-        )
 
-        .authorizeHttpRequests(auth -> auth
-            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+            .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(
+                    DispatcherType.ERROR
+                ).permitAll()
 
-            .requestMatchers(
-                "/api/auth/**",
-                "/swagger-ui.html",
-                "/swagger-ui/**",
-                "/v3/api-docs/**"
-            ).permitAll()
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/swagger-ui.html",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**"
+                ).permitAll()
 
-            .requestMatchers(
-                HttpMethod.GET,
-                "/api/products",
-                "/api/products/**"
-            ).authenticated()
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/products",
+                    "/api/products/**"
+                ).authenticated()
 
-            .requestMatchers(
-                HttpMethod.POST,
-                "/api/products"
-            ).hasRole("ADMIN")
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/products"
+                ).authenticated()
 
-            .requestMatchers(
-                HttpMethod.PUT,
-                "/api/products/**"
-            ).hasRole("ADMIN")
+                .requestMatchers(
+                    HttpMethod.PUT,
+                    "/api/products/**"
+                ).authenticated()
 
-            .requestMatchers(
-                HttpMethod.DELETE,
-                "/api/products/**"
-            ).hasRole("ADMIN")
+                .requestMatchers(
+                    HttpMethod.DELETE,
+                    "/api/products/**"
+                ).authenticated()
 
-            .anyRequest().authenticated()
-        )
-
-        .exceptionHandling(exception -> exception
-            .authenticationEntryPoint(
-                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+                .anyRequest().authenticated()
             )
-        )
 
-        .addFilterBefore(
-            jwtAuthenticationFilter,
-            UsernamePasswordAuthenticationFilter.class
-        );
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(
+                    new HttpStatusEntryPoint(
+                        HttpStatus.UNAUTHORIZED
+                    )
+                )
+            )
 
-    return http.build();
-}
+            .addFilterBefore(
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
+
+        return http.build();
+    }
 }

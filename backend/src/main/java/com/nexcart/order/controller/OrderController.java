@@ -3,13 +3,19 @@ package com.nexcart.order.controller;
 import com.nexcart.order.dto.OrderResponseDTO;
 import com.nexcart.order.service.OrderService;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import com.nexcart.order.dto.UpdateOrderStatusRequestDTO;
+
 
 @RestController
 @RequestMapping("/api/orders")
@@ -52,5 +58,18 @@ public class OrderController {
         String email = authentication.getName();
 
         return orderService.getUserOrders(email, pageable);
+    }
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Page<OrderResponseDTO> getAllOrders(Pageable pageable) {
+        return orderService.getAllOrders(pageable);
+    }
+
+    @PutMapping("/{id}/status")
+    @PreAuthorize ("hasRole('ADMIN')")
+    public OrderResponseDTO updateOrderStatus(@PathVariable Long id,@Valid @RequestBody UpdateOrderStatusRequestDTO request) {
+
+        return orderService.updateOrderStatus(id, request.getStatus());
     }
 }

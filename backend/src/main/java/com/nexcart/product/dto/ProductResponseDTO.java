@@ -28,4 +28,8 @@ public class ProductResponseDTO {
     private ProductStatus status;
 
     private String categoryName;
+
+    private Long sellerId;
+
+    private String sellerName;
 }

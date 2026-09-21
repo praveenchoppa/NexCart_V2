@@ -1,106 +1,91 @@
 package com.nexcart.product.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import com.nexcart.category.entity.Category;
 import com.nexcart.category.repository.CategoryRepository;
 import com.nexcart.exception.CategoryNotFoundException;
+import com.nexcart.exception.ProductNotFoundException;
+import com.nexcart.exception.ResourceNotFoundException;
 import com.nexcart.product.dto.ProductRequestDTO;
 import com.nexcart.product.dto.ProductResponseDTO;
 import com.nexcart.product.entity.Product;
 import com.nexcart.product.repository.ProductRepository;
-import com.nexcart.exception.ProductNotFoundException;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.nexcart.user.entity.User;
+import com.nexcart.user.entity.UserRole;
+import com.nexcart.user.repository.UserRepository;
 
 @Service
 public class ProductService {
-    
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final UserRepository userRepository;
 
-    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository) {
+    public ProductService(
+            ProductRepository productRepository,
+            CategoryRepository categoryRepository,
+            UserRepository userRepository) {
+
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
+        this.userRepository = userRepository;
     }
 
-    public ProductResponseDTO createProduct(ProductRequestDTO request){
-         
+    public ProductResponseDTO createProduct(String email, ProductRequestDTO request) {
+
+        User seller = resolveUser(email);
+
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found!"));
 
         Product product = new Product();
-
         product.setName(request.getName());
         product.setPrice(request.getPrice());
         product.setDescription(request.getDescription());
         product.setStock(request.getStock());
         product.setStatus(request.getStatus());
-
         product.setCategory(category);
+        product.setSeller(seller);
 
         Product savedProduct = productRepository.save(product);
 
-        ProductResponseDTO response = new ProductResponseDTO();
-
-        response.setId(savedProduct.getId());
-        response.setName(savedProduct.getName());
-        response.setPrice(savedProduct.getPrice());
-        response.setDescription(savedProduct.getDescription());
-        response.setStock(savedProduct.getStock());
-        response.setStatus(savedProduct.getStatus());
-
-        response.setCategoryName(savedProduct.getCategory().getName());
-
-        return response;
+        return toResponseDTO(savedProduct);
     }
 
-    public ProductResponseDTO getProductById(Long id){
+    public ProductResponseDTO getProductById(Long id) {
 
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException("Product not found!"));
 
-        ProductResponseDTO response = new ProductResponseDTO();
-
-        response.setId(product.getId());
-        response.setName(product.getName());
-        response.setPrice(product.getPrice());
-        response.setDescription(product.getDescription());
-        response.setStock(product.getStock());
-        response.setStatus(product.getStatus());
-        response.setCategoryName(product.getCategory().getName());
-
-        return response;
+        return toResponseDTO(product);
     }
 
-    public Page<ProductResponseDTO> getAllProducts(Pageable pageable){
+    public Page<ProductResponseDTO> getAllProducts(Pageable pageable) {
 
-        Page<Product> products = productRepository.findAll(pageable);
-
-        return products.map(product -> {
-
-            ProductResponseDTO response = new ProductResponseDTO();
-
-            response.setId(product.getId());
-            response.setName(product.getName());
-            response.setPrice(product.getPrice());
-            response.setDescription(product.getDescription());
-            response.setStock(product.getStock());
-            response.setStatus(product.getStatus());
-            response.setCategoryName(product.getCategory().getName());
-
-            return response;
-        });
-        
+        return productRepository.findAll(pageable).map(this::toResponseDTO);
     }
 
-    public ProductResponseDTO updateProduct(Long id,ProductRequestDTO request){
+    public Page<ProductResponseDTO> getMyProducts(String email, Pageable pageable) {
+
+        User seller = resolveUser(email);
+
+        return productRepository
+                .findBySellerId(seller.getId(), pageable)
+                .map(this::toResponseDTO);
+    }
+
+    public ProductResponseDTO updateProduct(String email, Long id, ProductRequestDTO request) {
+
+        User currentUser = resolveUser(email);
 
         Product product = productRepository.findById(id)
-                .orElseThrow(()->
-                      new ProductNotFoundException("Product not found!"));
+                .orElseThrow(() -> new ProductNotFoundException("Product not found!"));
+
+        assertCanModify(currentUser, product);
 
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found!"));
@@ -114,25 +99,58 @@ public class ProductService {
 
         Product updatedProduct = productRepository.save(product);
 
-        ProductResponseDTO response = new ProductResponseDTO();
-
-        response.setId(updatedProduct.getId());
-        response.setName(updatedProduct.getName());
-        response.setPrice(updatedProduct.getPrice());
-        response.setDescription(updatedProduct.getDescription());
-        response.setStock(updatedProduct.getStock());
-        response.setStatus(updatedProduct.getStatus());
-        response.setCategoryName(updatedProduct.getCategory().getName());
-
-        return response;
+        return toResponseDTO(updatedProduct);
     }
 
-    public void deleteProduct(Long id){
+    public void deleteProduct(String email, Long id) {
+
+        User currentUser = resolveUser(email);
 
         Product product = productRepository.findById(id)
-                .orElseThrow(()->
-                      new ProductNotFoundException("Product not found!"));
+                .orElseThrow(() -> new ProductNotFoundException("Product not found!"));
+
+        assertCanModify(currentUser, product);
 
         productRepository.delete(product);
+    }
+
+    private User resolveUser(String email) {
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found!"));
+    }
+
+    private void assertCanModify(User currentUser, Product product) {
+
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return;
+        }
+
+        if (product.getSeller() == null
+                || !product.getSeller().getId().equals(currentUser.getId())) {
+
+            throw new AccessDeniedException("Access denied!");
+        }
+    }
+
+    private ProductResponseDTO toResponseDTO(Product product) {
+
+        ProductResponseDTO response = new ProductResponseDTO();
+
+        response.setId(product.getId());
+        response.setName(product.getName());
+        response.setPrice(product.getPrice());
+        response.setDescription(product.getDescription());
+        response.setStock(product.getStock());
+        response.setStatus(product.getStatus());
+        response.setCategoryName(product.getCategory().getName());
+
+        if (product.getSeller() != null) {
+            response.setSellerId(product.getSeller().getId());
+            response.setSellerName(product.getSeller().getName());
+        }
+
+        return response;
     }
 }

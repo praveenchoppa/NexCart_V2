@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import com.nexcart.category.entity.Category;
 import com.nexcart.product.enums.ProductStatus;
+import com.nexcart.user.entity.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -62,4 +63,8 @@ public class Product {
 
     @Column(nullable = false)
     private Integer stock;
+
+    @ManyToOne
+    @JoinColumn(name = "seller_id")
+    private User seller;
 }

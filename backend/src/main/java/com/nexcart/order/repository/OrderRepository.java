@@ -13,4 +13,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdAndUserEmail(Long id, String email);
 
     Page<Order> findByUserEmail(String email, Pageable pageable);
+
 }
