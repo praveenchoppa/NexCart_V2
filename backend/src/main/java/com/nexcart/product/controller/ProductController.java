@@ -18,6 +18,10 @@ import com.nexcart.product.dto.ProductRequestDTO;
 import com.nexcart.product.dto.ProductResponseDTO;
 import com.nexcart.product.service.ProductService;
 
+import java.math.BigDecimal;
+
+import org.springframework.web.bind.annotation.RequestParam;
+
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 
@@ -55,9 +59,19 @@ public class ProductController {
 
     @GetMapping
     public Page<ProductResponseDTO> getAllProducts(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
             @PageableDefault(size = 10, sort = "id") Pageable pageable) {
 
-        return productService.getAllProducts(pageable);
+        return productService.searchProducts(
+                name,
+                categoryId,
+                minPrice,
+                maxPrice,
+                pageable
+        );
     }
 
     @PutMapping("/{id}")

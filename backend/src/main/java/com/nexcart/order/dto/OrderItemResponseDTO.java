@@ -21,4 +21,8 @@ public class OrderItemResponseDTO {
     private Integer quantity;
 
     private BigDecimal subtotal;
+
+    private Long sellerId;
+
+    private String sellerName;
 }

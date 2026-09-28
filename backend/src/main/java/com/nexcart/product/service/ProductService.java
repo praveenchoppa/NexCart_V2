@@ -18,6 +18,13 @@ import com.nexcart.user.entity.User;
 import com.nexcart.user.entity.UserRole;
 import com.nexcart.user.repository.UserRepository;
 
+
+import java.math.BigDecimal;
+
+import org.springframework.data.jpa.domain.Specification;
+
+import com.nexcart.product.specification.ProductSpecification;
+
 @Service
 public class ProductService {
 
@@ -64,10 +71,43 @@ public class ProductService {
         return toResponseDTO(product);
     }
 
-    public Page<ProductResponseDTO> getAllProducts(Pageable pageable) {
+public Page<ProductResponseDTO> searchProducts(
+        String name,
+        Long categoryId,
+        BigDecimal minPrice,
+        BigDecimal maxPrice,
+        Pageable pageable) {
 
-        return productRepository.findAll(pageable).map(this::toResponseDTO);
+    Specification<Product> specification = Specification.unrestricted();
+
+    if (name != null && !name.isBlank()) {
+        specification = specification.and(
+                ProductSpecification.hasName(name)
+        );
     }
+
+    if (categoryId != null) {
+        specification = specification.and(
+                ProductSpecification.hasCategory(categoryId)
+        );
+    }
+
+    if (minPrice != null) {
+        specification = specification.and(
+                ProductSpecification.priceGreaterThanOrEqualTo(minPrice)
+        );
+    }
+
+    if (maxPrice != null) {
+        specification = specification.and(
+                ProductSpecification.priceLessThanOrEqualTo(maxPrice)
+        );
+    }
+
+    return productRepository
+            .findAll(specification, pageable)
+            .map(this::toResponseDTO);
+}
 
     public Page<ProductResponseDTO> getMyProducts(String email, Pageable pageable) {
 

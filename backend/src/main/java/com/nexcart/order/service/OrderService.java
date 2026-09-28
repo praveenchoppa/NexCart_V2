@@ -1,8 +1,13 @@
 package com.nexcart.order.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +22,7 @@ import com.nexcart.order.dto.OrderResponseDTO;
 import com.nexcart.order.entity.Order;
 import com.nexcart.order.entity.OrderItem;
 import com.nexcart.order.entity.OrderStatus;
+import com.nexcart.order.repository.OrderItemRepository;
 import com.nexcart.order.repository.OrderRepository;
 import com.nexcart.product.entity.Product;
 import com.nexcart.product.repository.ProductRepository;
@@ -27,17 +33,20 @@ import com.nexcart.user.repository.UserRepository;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
 
     public OrderService(
             OrderRepository orderRepository,
+            OrderItemRepository orderItemRepository,
             CartRepository cartRepository,
             ProductRepository productRepository,
             UserRepository userRepository) {
 
         this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
         this.cartRepository = cartRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
@@ -116,10 +125,7 @@ public class OrderService {
 
             orderItem.setOrder(order);
             orderItem.setProduct(product);
-
-
             orderItem.setPrice(product.getPrice());
-
             orderItem.setQuantity(
                     cartItem.getQuantity()
             );
@@ -142,24 +148,7 @@ public class OrderService {
                 order.getCreatedAt(),
                 order.getItems()
                         .stream()
-                        .map(orderItem -> {
-
-                            BigDecimal subtotal =
-                                    orderItem.getPrice().multiply(
-                                            BigDecimal.valueOf(
-                                                    orderItem.getQuantity()
-                                            )
-                                    );
-
-                            return new OrderItemResponseDTO(
-                                    orderItem.getId(),
-                                    orderItem.getProduct().getId(),
-                                    orderItem.getProduct().getName(),
-                                    orderItem.getPrice(),
-                                    orderItem.getQuantity(),
-                                    subtotal
-                            );
-                        })
+                        .map(this::toOrderItemResponseDTO)
                         .toList()
         );
     }
@@ -183,24 +172,7 @@ public class OrderService {
                 order.getCreatedAt(),
                 order.getItems()
                         .stream()
-                        .map(orderItem -> {
-
-                            BigDecimal subtotal =
-                                    orderItem.getPrice().multiply(
-                                            BigDecimal.valueOf(
-                                                    orderItem.getQuantity()
-                                            )
-                                    );
-
-                            return new OrderItemResponseDTO(
-                                    orderItem.getId(),
-                                    orderItem.getProduct().getId(),
-                                    orderItem.getProduct().getName(),
-                                    orderItem.getPrice(),
-                                    orderItem.getQuantity(),
-                                    subtotal
-                            );
-                        })
+                        .map(this::toOrderItemResponseDTO)
                         .toList()
         );
     }
@@ -221,61 +193,91 @@ public class OrderService {
                             order.getCreatedAt(),
                             order.getItems()
                                     .stream()
-                                    .map(orderItem -> {
-
-                                        BigDecimal subtotal =
-                                                orderItem.getPrice().multiply(
-                                                        BigDecimal.valueOf(
-                                                                orderItem.getQuantity()
-                                                        )
-                                                );
-
-                                        return new OrderItemResponseDTO(
-                                                orderItem.getId(),
-                                                orderItem.getProduct().getId(),
-                                                orderItem.getProduct().getName(),
-                                                orderItem.getPrice(),
-                                                orderItem.getQuantity(),
-                                                subtotal
-                                        );
-                                    })
+                                    .map(this::toOrderItemResponseDTO)
                                     .toList()
                     );
                 });
     }
 
-    @Transactional (readOnly = true)
-    public Page<OrderResponseDTO> getAllOrders(Pageable pageable){
+@Transactional(readOnly = true)
+public Page<OrderResponseDTO> getOrdersForSeller(
+        String email,
+        Pageable pageable) {
 
-        return orderRepository.findAll(pageable).map(order -> {
-                return new OrderResponseDTO(
+    User seller = userRepository.findByEmail(email)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "User not found!"
+                    ));
+
+    Page<OrderItem> orderItems =
+            orderItemRepository.findByProductSellerId(
+                    seller.getId(),
+                    pageable
+            );
+
+    Map<Long, OrderResponseDTO> orderMap =
+            new LinkedHashMap<>();
+
+    for (OrderItem orderItem : orderItems.getContent()) {
+
+        Order order = orderItem.getOrder();
+
+        OrderResponseDTO orderResponse =
+                orderMap.computeIfAbsent(
                         order.getId(),
-                        order.getStatus().name(),
-                        order.getTotalAmount(),
-                        order.getCreatedAt(),
-                        order.getItems()
-                                .stream()
-                                .map(orderItem -> {
-
-                                    BigDecimal subtotal =
-                                            orderItem.getPrice().multiply(
-                                                    BigDecimal.valueOf(
-                                                            orderItem.getQuantity()
-                                                    )
-                                            );
-
-                                    return new OrderItemResponseDTO(
-                                            orderItem.getId(),
-                                            orderItem.getProduct().getId(),
-                                            orderItem.getProduct().getName(),
-                                            orderItem.getPrice(),
-                                            orderItem.getQuantity(),
-                                            subtotal
-                                    );
-                                })
-                                .toList()
+                        id -> new OrderResponseDTO(
+                                order.getId(),
+                                order.getStatus().name(),
+                                BigDecimal.ZERO,
+                                order.getCreatedAt(),
+                                new ArrayList<>()
+                        )
                 );
-        });
+
+        orderResponse.getItems()
+                .add(toOrderItemResponseDTO(orderItem));
+
+        BigDecimal itemSubtotal =
+                orderItem.getPrice()
+                        .multiply(
+                                BigDecimal.valueOf(
+                                        orderItem.getQuantity()
+                                )
+                        );
+
+        orderResponse.setTotalAmount(
+                orderResponse.getTotalAmount()
+                        .add(itemSubtotal)
+        );
+    }
+
+    return new PageImpl<>(
+            new ArrayList<>(orderMap.values()),
+            pageable,
+            orderMap.size()
+    );
+}
+
+    @Transactional(readOnly = true)
+    public Page<OrderResponseDTO> getAllOrders(
+            Pageable pageable) {
+
+        return orderRepository
+                .findAll(pageable)
+                .map(order -> {
+
+                    return new OrderResponseDTO(
+                            order.getId(),
+                            order.getStatus().name(),
+                            order.getTotalAmount(),
+                            order.getCreatedAt(),
+                            order.getItems()
+                                    .stream()
+                                    .map(this::toOrderItemResponseDTO)
+                                    .toList()
+                    );
+                });
     }
 
     @Transactional
@@ -302,19 +304,26 @@ public class OrderService {
             );
         }
 
-        if(newStatus == OrderStatus.CANCELLED){
-                for(OrderItem orderItem : order.getItems()){
-                        Product product = productRepository.findLockedById(orderItem.getProduct().getId())
-                                .orElseThrow(() ->
-                                        new ResourceNotFoundException(
-                                                "Product not found!"
-                                        ));
+        if (newStatus == OrderStatus.CANCELLED) {
 
-                        product.setStock(
-                                product.getStock() + orderItem.getQuantity()
-                        );
-                }
+            for (OrderItem orderItem : order.getItems()) {
+
+                Product product = productRepository
+                        .findLockedById(
+                                orderItem.getProduct().getId()
+                        )
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Product not found!"
+                                ));
+
+                product.setStock(
+                        product.getStock()
+                                + orderItem.getQuantity()
+                );
+            }
         }
+
         order.setStatus(newStatus);
 
         return new OrderResponseDTO(
@@ -324,25 +333,31 @@ public class OrderService {
                 order.getCreatedAt(),
                 order.getItems()
                         .stream()
-                        .map(orderItem -> {
-
-                            BigDecimal subtotal =
-                                    orderItem.getPrice().multiply(
-                                            BigDecimal.valueOf(
-                                                    orderItem.getQuantity()
-                                            )
-                                    );
-
-                            return new OrderItemResponseDTO(
-                                    orderItem.getId(),
-                                    orderItem.getProduct().getId(),
-                                    orderItem.getProduct().getName(),
-                                    orderItem.getPrice(),
-                                    orderItem.getQuantity(),
-                                    subtotal
-                            );
-                        })
+                        .map(this::toOrderItemResponseDTO)
                         .toList()
+        );
+    }
+
+    private OrderItemResponseDTO toOrderItemResponseDTO(
+            OrderItem orderItem) {
+
+        BigDecimal subtotal =
+                orderItem.getPrice()
+                        .multiply(
+                                BigDecimal.valueOf(
+                                        orderItem.getQuantity()
+                                )
+                        );
+
+        return new OrderItemResponseDTO(
+                orderItem.getId(),
+                orderItem.getProduct().getId(),
+                orderItem.getProduct().getName(),
+                orderItem.getPrice(),
+                orderItem.getQuantity(),
+                subtotal,
+                orderItem.getProduct().getSeller().getId(),
+                orderItem.getProduct().getSeller().getName()
         );
     }
 
@@ -354,11 +369,11 @@ public class OrderService {
 
             case PLACED ->
                     newStatus == OrderStatus.CONFIRMED
-                    || newStatus == OrderStatus.CANCELLED;
+                            || newStatus == OrderStatus.CANCELLED;
 
             case CONFIRMED ->
                     newStatus == OrderStatus.SHIPPED
-                    || newStatus == OrderStatus.CANCELLED;
+                            || newStatus == OrderStatus.CANCELLED;
 
             case SHIPPED ->
                     newStatus == OrderStatus.DELIVERED;

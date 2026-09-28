@@ -40,6 +40,16 @@ public class OrderController {
                 .body(response);
     }
 
+    @GetMapping ("/seller")
+    public Page<OrderResponseDTO> getOrdersForSeller(
+            Authentication authentication,
+            Pageable pageable) {
+
+        String email = authentication.getName();
+
+        return orderService.getOrdersForSeller(email, pageable);
+    }
+
     @GetMapping("/{id}")
     public OrderResponseDTO getOrderById(
             @PathVariable Long id,
