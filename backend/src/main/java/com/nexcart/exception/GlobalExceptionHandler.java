@@ -14,6 +14,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -243,4 +244,55 @@ public class GlobalExceptionHandler {
                             .status(HttpStatus.FORBIDDEN)
                             .body(error);
             }
+
+            @ExceptionHandler(ImageUploadException.class)
+public ResponseEntity<ErrorResponse> handleImageUploadException(
+        ImageUploadException ex,
+        HttpServletRequest request) {
+
+    ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            ex.getMessage(),
+            request.getRequestURI()
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(error);
+}
+
+@ExceptionHandler(ImageDeleteException.class)
+public ResponseEntity<ErrorResponse> handleImageDeleteException(
+        ImageDeleteException ex,
+        HttpServletRequest request) {
+
+    ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            ex.getMessage(),
+            request.getRequestURI()
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(error);
+}
+
+@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+        HttpRequestMethodNotSupportedException ex,
+        HttpServletRequest request) {
+
+    ErrorResponse error = new ErrorResponse(
+            LocalDateTime.now(),
+            HttpStatus.METHOD_NOT_ALLOWED.value(),
+            "HTTP method not supported for this endpoint.",
+            request.getRequestURI()
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.METHOD_NOT_ALLOWED)
+            .body(error);
+}
 }

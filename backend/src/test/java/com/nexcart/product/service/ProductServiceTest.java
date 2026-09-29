@@ -181,7 +181,7 @@ class ProductServiceTest {
                 productService.deleteProduct("other@test.com", 100L))
                 .isInstanceOf(AccessDeniedException.class);
 
-        verify(productRepository, never()).delete(any());
+        verify(productRepository, never()).delete(any(Product.class));
     }
 
     @Test
