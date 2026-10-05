@@ -236,7 +236,7 @@ public class GlobalExceptionHandler {
                     ErrorResponse error = new ErrorResponse(
                         LocalDateTime.now(),
                         HttpStatus.FORBIDDEN.value(),
-                        "Access denied!",
+                        ex.getMessage(),
                         request.getRequestURI()
                     );
 
