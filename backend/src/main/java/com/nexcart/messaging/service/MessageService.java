@@ -1,5 +1,7 @@
 package com.nexcart.messaging.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -71,5 +73,29 @@ public class MessageService {
                 message.getCreatedAt(),
                 message.getReadAt()
         );
+    }
+
+    public Page<MessageResponseDTO> getMessages(
+            String email,
+            Long conversationId,
+            Pageable pageable) {
+
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found!"));
+
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Conversation not found!"));
+        
+        if (!conversation.getBuyer().getId().equals(currentUser.getId())
+                && !conversation.getSeller().getId().equals(currentUser.getId())) {
+
+            throw new AccessDeniedException(
+                    "You are not a participant in this conversation!");
+        }
+
+        return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId, pageable)
+                .map(this::toResponseDTO);
     }
 }
