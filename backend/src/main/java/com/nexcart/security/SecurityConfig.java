@@ -1,3 +1,4 @@
+
 package com.nexcart.security;
 
 import org.springframework.context.annotation.Bean;
@@ -62,6 +63,10 @@ public class SecurityConfig {
                     "/swagger-ui.html",
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
+                ).permitAll()
+
+                .requestMatchers(
+                    "/ws", "/ws/**"
                 ).permitAll()
 
                 .requestMatchers(

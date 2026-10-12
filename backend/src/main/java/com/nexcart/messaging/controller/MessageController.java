@@ -8,6 +8,8 @@ import com.nexcart.messaging.dto.MessageCreateRequestDTO;
 import com.nexcart.messaging.dto.MessageResponseDTO;
 import com.nexcart.messaging.service.MessageService;
 
+import jakarta.validation.Valid;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -26,7 +28,7 @@ public class MessageController {
     @ResponseStatus(HttpStatus.CREATED)
     public MessageResponseDTO sendMessage(
             @PathVariable Long conversationId,
-            @RequestBody MessageCreateRequestDTO request,
+            @Valid @RequestBody MessageCreateRequestDTO request,
             Authentication authentication) {
 
         return messageService.sendMessage(
